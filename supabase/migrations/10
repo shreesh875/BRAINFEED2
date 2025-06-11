@@ -1,0 +1,16 @@
+/*
+  # Add onboarding status to profiles
+
+  1. Changes
+    - Add onboarding_completed boolean column to profiles table with default false
+    - Update existing profiles to have onboarding_completed = true
+*/
+
+-- Add onboarding_completed column
+ALTER TABLE profiles 
+ADD COLUMN IF NOT EXISTS onboarding_completed boolean DEFAULT false;
+
+-- Set existing profiles as completed
+UPDATE profiles 
+SET onboarding_completed = true 
+WHERE onboarding_completed IS NULL;
