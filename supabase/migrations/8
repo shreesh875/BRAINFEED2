@@ -1,0 +1,71 @@
+/*
+  # User Interests Schema
+
+  1. New Tables
+    - `interests`
+      - `id` (uuid)
+      - `name` (text, unique)
+      - `created_at` (timestamp)
+    - `user_interests`
+      - `user_id` (uuid, references profiles)
+      - `interest_id` (uuid, references interests)
+      - `created_at` (timestamp)
+
+  2. Security
+    - Enable RLS on both tables
+    - Add policies for:
+      - Everyone can read interests
+      - Users can manage their own interests
+*/
+
+-- Create interests table
+CREATE TABLE IF NOT EXISTS interests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text UNIQUE NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Create user_interests junction table
+CREATE TABLE IF NOT EXISTS user_interests (
+  user_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
+  interest_id uuid REFERENCES interests(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  PRIMARY KEY (user_id, interest_id)
+);
+
+-- Enable RLS
+ALTER TABLE interests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_interests ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DO $$ 
+BEGIN
+    DROP POLICY IF EXISTS "Interests are viewable by everyone" ON interests;
+    DROP POLICY IF EXISTS "Users can manage their own interests" ON user_interests;
+EXCEPTION
+    WHEN undefined_object THEN 
+        NULL;
+END $$;
+
+-- Create policies
+CREATE POLICY "Interests are viewable by everyone" ON interests
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can manage their own interests" ON user_interests
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Insert default interests
+INSERT INTO interests (name) VALUES
+  ('Artificial Intelligence'),
+  ('Machine Learning'),
+  ('Data Science'),
+  ('Quantum Physics'),
+  ('Astronomy'),
+  ('Biology'),
+  ('Chemistry'),
+  ('Mathematics'),
+  ('Computer Science'),
+  ('Neuroscience'),
+  ('Psychology'),
+  ('Economics')
+ON CONFLICT (name) DO NOTHING;
