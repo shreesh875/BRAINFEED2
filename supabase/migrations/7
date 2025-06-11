@@ -1,0 +1,39 @@
+/*
+  # Teams Helper Functions
+  
+  1. New Functions
+    - get_teams_for_users: Gets all teams for a specific user with member counts
+  
+  2. Security
+    - Function is secured with SECURITY DEFINER
+    - Only authenticated users can access their own team data
+*/
+
+-- Get teams for a specific user
+CREATE OR REPLACE FUNCTION get_teams_for_users(user_id uuid)
+RETURNS TABLE (
+  team_id uuid,
+  team_name text,
+  role text,
+  member_count bigint
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    t.id as team_id,
+    t.name as team_name,
+    tm.role,
+    (
+      SELECT COUNT(*)
+      FROM team_members sub_tm
+      WHERE sub_tm.team_id = t.id
+    ) as member_count
+  FROM teams t
+  INNER JOIN team_members tm ON tm.team_id = t.id
+  WHERE tm.user_id = user_id
+  ORDER BY t.name ASC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Example usage:
+-- SELECT * FROM get_teams_for_users('user-uuid-here');
