@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
+import { RefreshCw } from 'lucide-react'
 import FeedPost from '../components/Feed/FeedPost'
 import QuizModal from '../components/Feed/QuizModal'
+import { usePapers } from '../hooks/usePapers'
 
-// Mock data for demonstration
+// Mock data for demonstration (keeping some for variety)
 const mockPosts = [
   {
-    id: '1',
+    id: 'mock-1',
     type: 'video' as const,
     title: 'Introduction to Neural Networks',
     description: 'A beginner-friendly overview of neural networks and their applications in modern AI systems.',
@@ -21,23 +23,7 @@ const mockPosts = [
     timeAgo: '2h ago'
   },
   {
-    id: '2',
-    type: 'research' as const,
-    title: 'Quantum Computing: A New Paradigm',
-    description: 'Recent breakthroughs in quantum computing and their potential impact on cryptography and optimization problems.',
-    author: {
-      name: 'Prof. Sarah Johnson',
-      avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2',
-      handle: '@sarahj'
-    },
-    thumbnail: 'https://images.pexels.com/photos/2004161/pexels-photo-2004161.jpeg?auto=compress&cs=tinysrgb&w=800',
-    tags: ['Quantum Physics', 'Computing', 'Research'],
-    likes: 156,
-    comments: 23,
-    timeAgo: '14 ago'
-  },
-  {
-    id: '3',
+    id: 'mock-2',
     type: 'article' as const,
     title: 'The Future of Renewable Energy',
     description: 'Exploring innovative solar and wind technologies that could revolutionize how we generate clean energy.',
@@ -68,10 +54,13 @@ const mockQuizQuestion = {
 }
 
 const Feed: React.FC = () => {
-  const [posts] = useState(mockPosts)
+  const { papers, loading: papersLoading, error: papersError, refetch } = usePapers()
   const [viewedPosts, setViewedPosts] = useState(0)
   const [showQuiz, setShowQuiz] = useState(false)
   const [points, setPoints] = useState(0)
+
+  // Combine mock posts with real papers
+  const allPosts = [...mockPosts, ...papers]
 
   useEffect(() => {
     // Trigger quiz every 3 posts viewed
@@ -99,20 +88,55 @@ const Feed: React.FC = () => {
       <div className="text-center py-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Your Feed</h1>
         <p className="text-gray-600 dark:text-gray-400">Discover educational content tailored to your interests</p>
-        {points > 0 && (
-          <div className="mt-4 inline-flex items-center px-4 py-2 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-full">
-            <span className="font-semibold">Points: {points}</span>
-          </div>
-        )}
+        
+        <div className="flex items-center justify-center space-x-4 mt-4">
+          {points > 0 && (
+            <div className="inline-flex items-center px-4 py-2 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-full">
+              <span className="font-semibold">Points: {points}</span>
+            </div>
+          )}
+          
+          <button
+            onClick={refetch}
+            disabled={papersLoading}
+            className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${papersLoading ? 'animate-spin' : ''}`} />
+            Refresh Papers
+          </button>
+        </div>
       </div>
 
+      {papersError && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-600 dark:text-red-400">
+            Failed to load research papers: {papersError}
+          </p>
+        </div>
+      )}
+
+      {papersLoading && (
+        <div className="text-center py-8">
+          <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading personalized research papers...</p>
+        </div>
+      )}
+
       <div className="space-y-6">
-        {posts.map((post, index) => (
+        {allPosts.map((post, index) => (
           <div key={post.id} onMouseEnter={() => index === viewedPosts && handlePostView()}>
             <FeedPost post={post} />
           </div>
         ))}
       </div>
+
+      {allPosts.length === 0 && !papersLoading && (
+        <div className="text-center py-12">
+          <p className="text-gray-600 dark:text-gray-400">
+            No posts available. Try refreshing or check your interests in your profile.
+          </p>
+        </div>
+      )}
 
       <QuizModal
         isOpen={showQuiz}
