@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import { User, Session } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 
 interface UserProfile {
   id: string
@@ -12,8 +14,9 @@ interface UserProfile {
 }
 
 interface UserContextType {
-  user: any | null
+  user: User | null
   profile: UserProfile | null
+  session: Session | null
   loading: boolean
   signUp: (email: string, password: string, fullName: string, username: string) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
@@ -31,94 +34,170 @@ export const useUser = () => {
   return context
 }
 
-// Mock user data
-const mockUser = {
-  id: 'mock-user-123',
-  email: 'demo@brainfeed.com'
-}
-
-const defaultProfile: UserProfile = {
-  id: 'mock-user-123',
-  username: 'demo_user',
-  full_name: 'Demo User',
-  points: 245,
-  streak: 3,
-  created_at: new Date().toISOString(),
-  onboarding_completed: true
-}
-
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate loading and auto-login for demo
-    const timer = setTimeout(() => {
-      const savedProfile = localStorage.getItem('brainfeed-profile')
-      if (savedProfile) {
-        const parsedProfile = JSON.parse(savedProfile)
-        setProfile(parsedProfile)
-        setUser(mockUser)
-      }
-      setLoading(false)
-    }, 1000)
+    let mounted = true
 
-    return () => clearTimeout(timer)
+    // Get initial session
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Error getting session:', error)
+          if (mounted) {
+            setLoading(false)
+          }
+          return
+        }
+
+        if (mounted) {
+          setSession(session)
+          setUser(session?.user ?? null)
+          
+          if (session?.user) {
+            await fetchProfile(session.user.id)
+          } else {
+            setLoading(false)
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error)
+        if (mounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    initializeAuth()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return
+
+      console.log('Auth state changed:', event, session?.user?.id)
+      
+      setSession(session)
+      setUser(session?.user ?? null)
+      
+      if (session?.user) {
+        await fetchProfile(session.user.id)
+      } else {
+        setProfile(null)
+        setLoading(false)
+      }
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
+
+  const fetchProfile = async (userId: string) => {
+    try {
+      console.log('Fetching profile for user:', userId)
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Profile doesn't exist yet, this is normal for new users
+          console.log('Profile not found, will be created by trigger')
+          setProfile(null)
+        } else {
+          console.error('Error fetching profile:', error)
+        }
+      } else {
+        console.log('Profile fetched:', data)
+        setProfile(data)
+      }
+    } catch (error) {
+      console.error('Error in fetchProfile:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const signUp = async (email: string, password: string, fullName: string, username: string) => {
     setLoading(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    const newProfile: UserProfile = {
-      id: 'mock-user-123',
-      username,
-      full_name: fullName,
-      points: 0,
-      streak: 0,
-      created_at: new Date().toISOString(),
-      onboarding_completed: false
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            username: username,
+          }
+        }
+      })
+
+      if (error) throw error
+      
+      // The trigger should create the profile automatically
+      // Wait a moment for the trigger to execute
+      if (data.user) {
+        setTimeout(() => {
+          fetchProfile(data.user!.id)
+        }, 1000)
+      }
+      
+      return data
+    } catch (error) {
+      setLoading(false)
+      throw error
     }
-    
-    setUser(mockUser)
-    setProfile(newProfile)
-    localStorage.setItem('brainfeed-profile', JSON.stringify(newProfile))
-    setLoading(false)
   }
 
   const signIn = async (email: string, password: string) => {
     setLoading(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    setUser(mockUser)
-    setProfile(defaultProfile)
-    localStorage.setItem('brainfeed-profile', JSON.stringify(defaultProfile))
-    setLoading(false)
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      setLoading(false)
+      throw error
+    }
   }
 
   const signOut = async () => {
-    setUser(null)
-    setProfile(null)
-    localStorage.removeItem('brainfeed-profile')
-    localStorage.removeItem('brainfeed-interests')
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
   }
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!profile) return
-    
-    const updatedProfile = { ...profile, ...updates }
-    setProfile(updatedProfile)
-    localStorage.setItem('brainfeed-profile', JSON.stringify(updatedProfile))
+    if (!user) throw new Error('No user logged in')
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id)
+      .select()
+      .single()
+
+    if (error) throw error
+    setProfile(data)
   }
 
   const value = {
     user,
     profile,
+    session,
     loading,
     signUp,
     signIn,

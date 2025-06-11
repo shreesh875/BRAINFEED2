@@ -1,41 +1,42 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../contexts/UserContext'
+import { supabase } from '../../lib/supabase'
 
-const availableInterests = [
-  { id: '1', name: 'Artificial Intelligence' },
-  { id: '2', name: 'Machine Learning' },
-  { id: '3', name: 'Data Science' },
-  { id: '4', name: 'Computer Science' },
-  { id: '5', name: 'Physics' },
-  { id: '6', name: 'Mathematics' },
-  { id: '7', name: 'Biology' },
-  { id: '8', name: 'Chemistry' },
-  { id: '9', name: 'Neuroscience' },
-  { id: '10', name: 'Psychology' },
-  { id: '11', name: 'Economics' },
-  { id: '12', name: 'Philosophy' },
-  { id: '13', name: 'History' },
-  { id: '14', name: 'Literature' },
-  { id: '15', name: 'Linguistics' },
-  { id: '16', name: 'Astronomy' },
-  { id: '17', name: 'Environmental Science' },
-  { id: '18', name: 'Medicine' },
-  { id: '19', name: 'Engineering' },
-  { id: '20', name: 'Quantum Computing' },
-  { id: '21', name: 'Robotics' },
-  { id: '22', name: 'Biotechnology' },
-  { id: '23', name: 'Cybersecurity' },
-  { id: '24', name: 'Blockchain' },
-  { id: '25', name: 'Climate Science' }
-]
+interface Interest {
+  id: string
+  name: string
+}
 
 const InterestSelection: React.FC = () => {
+  const [interests, setInterests] = useState<Interest[]>([])
   const [selectedInterests, setSelectedInterests] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingInterests, setLoadingInterests] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { updateProfile } = useUser()
+  const { user, updateProfile } = useUser()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    fetchInterests()
+  }, [])
+
+  const fetchInterests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('interests')
+        .select('id, name')
+        .order('name')
+
+      if (error) throw error
+      setInterests(data || [])
+    } catch (error) {
+      console.error('Error fetching interests:', error)
+      setError('Failed to load interests')
+    } finally {
+      setLoadingInterests(false)
+    }
+  }
 
   const toggleInterest = (interestId: string) => {
     setSelectedInterests(prev => 
@@ -52,12 +53,17 @@ const InterestSelection: React.FC = () => {
     setError(null)
     
     try {
-      // Save interests to localStorage
-      const selectedInterestNames = availableInterests
-        .filter(interest => selectedInterests.includes(interest.id))
-        .map(interest => interest.name)
+      // Save user interests
+      const interestInserts = selectedInterests.map(interestId => ({
+        user_id: user?.id,
+        interest_id: interestId
+      }))
       
-      localStorage.setItem('brainfeed-interests', JSON.stringify(selectedInterestNames))
+      const { error: interestsError } = await supabase
+        .from('user_interests')
+        .insert(interestInserts)
+      
+      if (interestsError) throw interestsError
       
       // Mark onboarding as completed
       await updateProfile({ onboarding_completed: true })
@@ -69,6 +75,17 @@ const InterestSelection: React.FC = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (loadingInterests) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading interests...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -91,7 +108,7 @@ const InterestSelection: React.FC = () => {
           )}
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
-            {availableInterests.map((interest) => (
+            {interests.map((interest) => (
               <button
                 key={interest.id}
                 onClick={() => toggleInterest(interest.id)}
@@ -108,7 +125,7 @@ const InterestSelection: React.FC = () => {
 
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Selected: {selectedInterests.length}/{availableInterests.length} (minimum 3)
+              Selected: {selectedInterests.length}/{interests.length} (minimum 3)
             </p>
             <button
               onClick={handleContinue}

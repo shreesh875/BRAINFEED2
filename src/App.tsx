@@ -1,5 +1,6 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { DailyProvider } from '@daily-co/daily-react'
 import { UserProvider, useUser } from './contexts/UserContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -62,7 +63,11 @@ const AppRoutes: React.FC = () => {
         <Route path="feed" element={<Feed />} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="profile" element={<Profile />} />
-        <Route path="brainmate" element={<BrainMate />} />
+        <Route path="brainmate" element={
+          <DailyProvider>
+            <BrainMate />
+          </DailyProvider>
+        } />
       </Route>
 
       {/* Catch all route */}
