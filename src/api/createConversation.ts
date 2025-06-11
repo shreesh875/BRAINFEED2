@@ -10,9 +10,10 @@ export const createConversation = async (
       "x-api-key": token,
     },
     body: JSON.stringify({
-      persona_id: "p9a95912",
+      persona_id: "p4483df9ffff",
+      replica_id: "r9244a899ae0",
       properties: {
-        apply_greenscreen: true,
+        apply_greenscreen: false,
       },
     }),
   });
