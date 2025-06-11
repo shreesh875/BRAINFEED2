@@ -77,7 +77,6 @@ const BrainMate: React.FC = () => {
   const [conversation, setConversation] = useState<IConversation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string>("");
   const DailyCall = useDaily();
 
   const apiKey = "2b65ef86349841bbbee6451902796a78";
@@ -86,37 +85,23 @@ const BrainMate: React.FC = () => {
     if (DailyCall && !conversation && !loading) {
       setLoading(true);
       setError(null);
-      setDebugInfo("Starting conversation...");
-      
       try {
-        setDebugInfo("Creating conversation with Tavus API...");
         const newConversation = await createConversation(apiKey);
-        
-        setDebugInfo(`Conversation created: ${newConversation.conversation_id}`);
-        setDebugInfo(`Joining Daily room: ${newConversation.conversation_url}`);
-        
         await DailyCall.join({ url: newConversation.conversation_url });
-        
-        setDebugInfo("Successfully joined Daily room");
         setConversation(newConversation);
-      } catch (error: any) {
-        console.error("Error starting conversation:", error);
-        setError(`Failed to start conversation: ${error.message || error}`);
-        setDebugInfo(`Error: ${error.message || error}`);
-      } finally {
-        setLoading(false);
+      } catch (error) {
+        setError(`Failed to start conversation: ${error}`);
       }
+      setLoading(false);
     }
   };
 
   const handleLeaveCall = () => {
-    setDebugInfo("Leaving call...");
     DailyCall?.leave();
     if (conversation) {
       endConversation(conversation.conversation_id, apiKey);
     }
     setConversation(null);
-    setDebugInfo("");
   };
 
   const handleRestartCall = async () => {
@@ -127,54 +112,15 @@ const BrainMate: React.FC = () => {
     setTimeout(async () => {
       setLoading(true);
       setError(null);
-      setDebugInfo("Restarting conversation...");
-      
       try {
         const newConversation = await createConversation(apiKey);
         await DailyCall?.join({ url: newConversation.conversation_url });
         setConversation(newConversation);
-        setDebugInfo("Conversation restarted successfully");
-      } catch (error: any) {
-        console.error("Error restarting conversation:", error);
-        setError(`Failed to restart conversation: ${error.message || error}`);
-        setDebugInfo(`Restart error: ${error.message || error}`);
-      } finally {
-        setLoading(false);
+      } catch (error) {
+        setError(`Failed to restart conversation: ${error}`);
       }
+      setLoading(false);
     }, 1000);
-  };
-
-  // Test API connectivity
-  const testAPI = async () => {
-    setDebugInfo("Testing API connectivity...");
-    try {
-      const response = await fetch("https://tavusapi.com/v2/conversations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          persona_id: "p4483df9ffff",
-          replica_id: "r9244a899ae0",
-          properties: {
-            apply_greenscreen: false,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        setDebugInfo(`API Error: ${response.status} - ${errorText}`);
-        setError(`API Error: ${response.status} - ${errorText}`);
-      } else {
-        const data = await response.json();
-        setDebugInfo(`API Test Success: ${JSON.stringify(data, null, 2)}`);
-      }
-    } catch (error: any) {
-      setDebugInfo(`Network Error: ${error.message}`);
-      setError(`Network Error: ${error.message}`);
-    }
   };
 
   return (
@@ -187,15 +133,7 @@ const BrainMate: React.FC = () => {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
         {error && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-red-600 dark:text-red-400 font-medium">Error:</p>
-            <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-          </div>
-        )}
-
-        {debugInfo && (
-          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <p className="text-blue-600 dark:text-blue-400 font-medium">Debug Info:</p>
-            <pre className="text-blue-600 dark:text-blue-400 text-xs mt-2 whitespace-pre-wrap">{debugInfo}</pre>
+            <p className="text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
 
@@ -203,7 +141,6 @@ const BrainMate: React.FC = () => {
           <div className="text-center py-12">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600 dark:text-gray-400">Starting conversation...</p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">{debugInfo}</p>
           </div>
         )}
 
@@ -212,9 +149,6 @@ const BrainMate: React.FC = () => {
             <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
               <p className="text-green-700 dark:text-green-300 font-medium">
                 🎉 Connected to BrainMate! Start asking questions about any topic you're learning.
-              </p>
-              <p className="text-green-600 dark:text-green-400 text-sm mt-1">
-                Conversation ID: {conversation.conversation_id}
               </p>
             </div>
             <Call onLeave={handleLeaveCall} />
@@ -231,24 +165,16 @@ const BrainMate: React.FC = () => {
               BrainMate is here to help you understand complex topics, answer your questions, and guide your learning journey.
             </p>
             <div className="space-y-4">
-              <div className="flex flex-wrap justify-center gap-4">
-                <button
-                  onClick={startCall}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200"
-                >
-                  Start Conversation
-                </button>
-                <button
-                  onClick={testAPI}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-                >
-                  Test API
-                </button>
-              </div>
+              <button
+                onClick={startCall}
+                className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200"
+              >
+                Start Conversation
+              </button>
               {conversation && (
                 <button
                   onClick={handleRestartCall}
-                  className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+                  className="w-full sm:w-auto ml-4 bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
                 >
                   Restart Conversation
                 </button>
