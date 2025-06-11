@@ -1,0 +1,25 @@
+/*
+  # Fix Interest IDs
+
+  1. Changes
+    - Update interest IDs to match frontend values
+    - Ensure consistent UUIDs between frontend and backend
+  
+  2. Security
+    - No changes to security policies
+    - Maintains existing RLS settings
+*/
+
+-- Update interests with new UUIDs
+UPDATE interests SET id = '98f0f127-6c7a-4ce4-9b2a-c13c1c3b6a2a' WHERE name = 'Artificial Intelligence';
+UPDATE interests SET id = 'b4a9b89c-4c4d-4c8e-9b2b-c13c1c3b6a2b' WHERE name = 'Machine Learning';
+UPDATE interests SET id = 'c2b8a79d-3d3e-4d7f-9b2c-c13c1c3b6a2c' WHERE name = 'Data Science';
+UPDATE interests SET id = 'd1c7b68e-2e2f-4e6d-9b2d-c13c1c3b6a2d' WHERE name = 'Quantum Physics';
+UPDATE interests SET id = 'e0d6c57f-1f1e-4f5e-9b2e-c13c1c3b6a2e' WHERE name = 'Astronomy';
+UPDATE interests SET id = 'f9e5d46a-0f0e-4f4f-9b2f-c13c1c3b6a2f' WHERE name = 'Biology';
+UPDATE interests SET id = 'a8f4e35a-9a9b-4c3c-8b2a-c13c1c3b6a2a' WHERE name = 'Chemistry';
+UPDATE interests SET id = 'b7e3f24b-8b8c-4c2c-8b2b-c13c1c3b6a2b' WHERE name = 'Mathematics';
+UPDATE interests SET id = 'c6d2e13c-7c7d-4c1c-8b2c-c13c1c3b6a2c' WHERE name = 'Computer Science';
+UPDATE interests SET id = 'd5e1f02d-6d6e-4c0c-8b2d-c13c1c3b6a2d' WHERE name = 'Neuroscience';
+UPDATE interests SET id = 'e4f0e91e-5e5f-4c9c-8b2e-c13c1c3b6a2e' WHERE name = 'Psychology';
+UPDATE interests SET id = 'f3e9d80f-4f4e-4c8c-8b2f-c13c1c3b6a2f' WHERE name = 'Economics';
