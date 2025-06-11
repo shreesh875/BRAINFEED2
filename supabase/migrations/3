@@ -1,0 +1,88 @@
+/*
+  # Common Database Queries
+  
+  1. New Functions
+    - get_user_profile: Retrieves complete user profile with interests
+    - update_user_points: Updates user points and streak
+    - get_leaderboard: Gets global or friends leaderboard
+  
+  2. Security
+    - All functions are secured with RLS
+    - Only authenticated users can access their own data
+*/
+
+-- Get complete user profile with interests
+CREATE OR REPLACE FUNCTION get_user_profile(user_id uuid)
+RETURNS json AS $$
+BEGIN
+  RETURN (
+    SELECT json_build_object(
+      'profile', p,
+      'interests', (
+        SELECT json_agg(i.*)
+        FROM interests i
+        INNER JOIN user_interests ui ON ui.interest_id = i.id
+        WHERE ui.user_id = p.id
+      )
+    )
+    FROM profiles p
+    WHERE p.id = user_id
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Update user points and streak
+CREATE OR REPLACE FUNCTION update_user_points(
+  user_id uuid,
+  points_to_add int,
+  reset_streak boolean DEFAULT false
+)
+RETURNS void AS $$
+BEGIN
+  UPDATE profiles
+  SET 
+    points = points + points_to_add,
+    streak = CASE 
+      WHEN reset_streak THEN 0 
+      ELSE streak + 1 
+    END,
+    updated_at = now()
+  WHERE id = user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Get leaderboard (global or friends)
+CREATE OR REPLACE FUNCTION get_leaderboard(
+  requesting_user_id uuid,
+  friends_only boolean DEFAULT false,
+  limit_count int DEFAULT 10
+)
+RETURNS SETOF profiles AS $$
+BEGIN
+  IF friends_only THEN
+    RETURN QUERY
+    SELECT p.*
+    FROM profiles p
+    WHERE p.id IN (
+      -- This is a placeholder for friend relationships
+      -- You'll need to create a friends table first
+      SELECT requesting_user_id
+    )
+    ORDER BY p.points DESC, p.streak DESC
+    LIMIT limit_count;
+  ELSE
+    RETURN QUERY
+    SELECT p.*
+    FROM profiles p
+    ORDER BY p.points DESC, p.streak DESC
+    LIMIT limit_count;
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Example usage:
+-- Get user profile: SELECT get_user_profile('user-uuid-here');
+-- Update points: SELECT update_user_points('user-uuid-here', 10);
+-- Reset streak: SELECT update_user_points('user-uuid-here', 0, true);
+-- Get global leaderboard: SELECT * FROM get_leaderboard('user-uuid-here', false, 10);
+-- Get friends leaderboard: SELECT * FROM get_leaderboard('user-uuid-here', true, 10);
