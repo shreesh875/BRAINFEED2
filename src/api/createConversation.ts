@@ -10,10 +10,8 @@ export const createConversation = async (
       "x-api-key": token,
     },
     body: JSON.stringify({
-      // Stock Demo Persona
       persona_id: "p9a95912",
       properties: {
-        // Apply greenscreen to the background
         apply_greenscreen: true,
       },
     }),
